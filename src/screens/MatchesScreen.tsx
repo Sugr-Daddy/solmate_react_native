@@ -7,6 +7,7 @@ import {
   Image,
   Alert,
   StatusBar,
+  StyleSheet,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useQuery } from '@tanstack/react-query';
@@ -147,6 +148,17 @@ const MatchesScreen: React.FC = () => {
     }
   };
 
+  const formatTimeAgo = (timestamp: Date) => {
+    const now = new Date();
+    const diffInHours = Math.floor((now.getTime() - timestamp.getTime()) / (1000 * 60 * 60));
+    
+    if (diffInHours < 1) return 'Just now';
+    if (diffInHours < 24) return `${diffInHours}h ago`;
+    const diffInDays = Math.floor(diffInHours / 24);
+    if (diffInDays < 7) return `${diffInDays}d ago`;
+    return timestamp.toLocaleDateString();
+  };
+
   const handleMatchAction = (match: Match, action: 'accept' | 'reject') => {
     const user = getMatchUser(match);
     if (!user) return;
@@ -190,62 +202,69 @@ const MatchesScreen: React.FC = () => {
     if (!user) return null;
 
     const isIncoming = match.receiverId === 'user-1';
-    const timeAgo = Math.floor((Date.now() - match.createdAt.getTime()) / 3600000);
 
     return (
-      <View className="bg-background-secondary rounded-2xl p-4 mb-4 mx-4 shadow-lg">
-        <View className="flex-row items-center mb-4">
+      <View style={styles.matchCard}>
+        <View style={styles.matchHeader}>
           <Image
             source={{ uri: user.photos[0] }}
-            className="w-16 h-16 rounded-full mr-4"
+            style={styles.userImage}
             resizeMode="cover"
           />
-          <View className="flex-1">
-            <Text className="text-white text-lg font-bold">{user.name}</Text>
-            <Text className="text-gray-400 text-sm">{user.age} years old</Text>
-            <Text className="text-gray-500 text-xs">{timeAgo}h ago</Text>
+          <View style={styles.userInfo}>
+            <Text style={styles.userName}>{user.name}</Text>
+            <Text style={styles.userAge}>{user.age} years old</Text>
+            <Text style={styles.timeAgo}>
+              {formatTimeAgo(match.createdAt)}
+            </Text>
           </View>
-          <View className="items-end">
-            <View className="flex-row items-center mb-1">
+          <View style={styles.statusContainer}>
+            <View style={styles.statusBadge}>
               <Ionicons name={status.icon as any} size={16} color={status.color} />
-              <Text className="text-gray-400 text-xs ml-1">{status.text}</Text>
+              <Text style={[styles.statusText, { color: status.color }]}>
+                {status.text}
+              </Text>
             </View>
-            <Text className="text-primary font-bold text-lg">${match.tipAmount}</Text>
+            <Text style={styles.tipAmount}>${match.tipAmount}</Text>
           </View>
         </View>
 
-        <Text className="text-gray-300 text-sm mb-4 leading-5">
+        <Text style={styles.userBio}>
           {user.bio}
         </Text>
 
         {match.status === 'pending' && isIncoming && (
-          <View className="flex-row space-x-3">
+          <View style={styles.actionButtons}>
             <TouchableOpacity
               onPress={() => handleMatchAction(match, 'accept')}
-              className="flex-1 bg-primary py-3 rounded-xl items-center"
+              style={styles.acceptButton}
             >
-              <Text className="text-black font-bold">Accept</Text>
+              <Ionicons name="checkmark" size={20} color="#000000" />
+              <Text style={styles.acceptButtonText}>Accept</Text>
             </TouchableOpacity>
             <TouchableOpacity
               onPress={() => handleMatchAction(match, 'reject')}
-              className="flex-1 bg-gray-600 py-3 rounded-xl items-center"
+              style={styles.rejectButton}
             >
-              <Text className="text-white font-bold">Reject</Text>
+              <Ionicons name="close" size={20} color="#FFFFFF" />
+              <Text style={styles.rejectButtonText}>Reject</Text>
             </TouchableOpacity>
           </View>
         )}
 
         {match.status === 'accepted' && (
-          <View className="bg-green-500/20 border border-green-500/30 rounded-xl p-3">
-            <Text className="text-green-400 text-center font-semibold">
+          <View style={styles.acceptedContainer}>
+            <Ionicons name="heart" size={20} color="#00F90C" />
+            <Text style={styles.acceptedText}>
               💚 You're matched with {user.name}!
             </Text>
           </View>
         )}
 
         {match.status === 'ghosted' && (
-          <View className="bg-purple-500/20 border border-purple-500/30 rounded-xl p-3">
-            <Text className="text-purple-400 text-center font-semibold">
+          <View style={styles.ghostedContainer}>
+            <Ionicons name="close-circle" size={20} color="#8B5CF6" />
+            <Text style={styles.ghostedText}>
               👻 {user.name} ghosted you
             </Text>
           </View>
@@ -255,13 +274,11 @@ const MatchesScreen: React.FC = () => {
   };
 
   const renderEmptyState = () => (
-    <View className="flex-1 justify-center items-center bg-background-primary px-6">
-      <View className="bg-background-secondary rounded-3xl p-8 items-center">
+    <View style={styles.emptyContainer}>
+      <View style={styles.emptyCard}>
         <Ionicons name="heart-outline" size={64} color="#00F90C" />
-        <Text className="text-white text-2xl font-bold mt-4 mb-2">
-          No Matches Yet
-        </Text>
-        <Text className="text-gray-400 text-center text-base">
+        <Text style={styles.emptyTitle}>No Matches Yet</Text>
+        <Text style={styles.emptySubtitle}>
           Start swiping to find your perfect match! When someone tips you and you accept, you'll see them here.
         </Text>
       </View>
@@ -269,22 +286,20 @@ const MatchesScreen: React.FC = () => {
   );
 
   return (
-    <View className="flex-1 bg-background-primary">
+    <View style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor="#0A0A0A" />
       
       {/* Header */}
-      <View className="pt-12 pb-4 px-6 bg-background-primary">
-        <View className="flex-row justify-between items-center">
+      <View style={styles.header}>
+        <View style={styles.headerContent}>
           <View>
-            <Text className="text-white text-2xl font-bold">Matches</Text>
-            <Text className="text-gray-400 text-sm">Your connections</Text>
+            <Text style={styles.headerTitle}>Matches</Text>
+            <Text style={styles.headerSubtitle}>Your connections</Text>
           </View>
-          <View className="flex-row items-center space-x-2">
-            <View className="bg-primary/20 px-3 py-1 rounded-full">
-              <Text className="text-primary text-sm font-semibold">
-                {matches.length} matches
-              </Text>
-            </View>
+          <View style={styles.matchCount}>
+            <Text style={styles.matchCountText}>
+              {matches.length} matches
+            </Text>
           </View>
         </View>
       </View>
@@ -298,11 +313,219 @@ const MatchesScreen: React.FC = () => {
           renderItem={renderMatchItem}
           keyExtractor={(item) => item.id}
           showsVerticalScrollIndicator={false}
-          contentContainerStyle={{ paddingBottom: 20 }}
+          contentContainerStyle={styles.listContainer}
         />
       )}
     </View>
   );
 };
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#0A0A0A',
+  },
+  header: {
+    paddingTop: 48,
+    paddingBottom: 16,
+    paddingHorizontal: 24,
+    backgroundColor: '#0A0A0A',
+  },
+  headerContent: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  headerTitle: {
+    color: '#FFFFFF',
+    fontSize: 24,
+    fontWeight: 'bold',
+  },
+  headerSubtitle: {
+    color: '#9CA3AF',
+    fontSize: 14,
+  },
+  matchCount: {
+    backgroundColor: 'rgba(0, 249, 12, 0.2)',
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+    borderRadius: 20,
+  },
+  matchCountText: {
+    color: '#00F90C',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  listContainer: {
+    paddingBottom: 20,
+  },
+  matchCard: {
+    backgroundColor: '#1A1A1A',
+    borderRadius: 20,
+    padding: 20,
+    marginHorizontal: 16,
+    marginBottom: 16,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 4,
+    },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 6,
+  },
+  matchHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  userImage: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    marginRight: 16,
+  },
+  userInfo: {
+    flex: 1,
+  },
+  userName: {
+    color: '#FFFFFF',
+    fontSize: 18,
+    fontWeight: 'bold',
+    marginBottom: 4,
+  },
+  userAge: {
+    color: '#9CA3AF',
+    fontSize: 14,
+    marginBottom: 2,
+  },
+  timeAgo: {
+    color: '#6B7280',
+    fontSize: 12,
+  },
+  statusContainer: {
+    alignItems: 'flex-end',
+  },
+  statusBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 4,
+  },
+  statusText: {
+    fontSize: 12,
+    marginLeft: 4,
+  },
+  tipAmount: {
+    color: '#00F90C',
+    fontSize: 18,
+    fontWeight: 'bold',
+  },
+  userBio: {
+    color: '#D1D5DB',
+    fontSize: 14,
+    lineHeight: 20,
+    marginBottom: 16,
+  },
+  actionButtons: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  acceptButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#00F90C',
+    paddingVertical: 12,
+    borderRadius: 16,
+  },
+  acceptButtonText: {
+    color: '#000000',
+    fontSize: 16,
+    fontWeight: 'bold',
+    marginLeft: 8,
+  },
+  rejectButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#6B7280',
+    paddingVertical: 12,
+    borderRadius: 16,
+  },
+  rejectButtonText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: 'bold',
+    marginLeft: 8,
+  },
+  acceptedContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(0, 249, 12, 0.1)',
+    borderWidth: 1,
+    borderColor: 'rgba(0, 249, 12, 0.3)',
+    borderRadius: 16,
+    padding: 12,
+  },
+  acceptedText: {
+    color: '#00F90C',
+    fontSize: 14,
+    fontWeight: '600',
+    marginLeft: 8,
+  },
+  ghostedContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(139, 92, 246, 0.1)',
+    borderWidth: 1,
+    borderColor: 'rgba(139, 92, 246, 0.3)',
+    borderRadius: 16,
+    padding: 12,
+  },
+  ghostedText: {
+    color: '#8B5CF6',
+    fontSize: 14,
+    fontWeight: '600',
+    marginLeft: 8,
+  },
+  emptyContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 24,
+  },
+  emptyCard: {
+    backgroundColor: '#1A1A1A',
+    borderRadius: 24,
+    padding: 32,
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 4,
+    },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 6,
+  },
+  emptyTitle: {
+    color: '#FFFFFF',
+    fontSize: 24,
+    fontWeight: 'bold',
+    marginTop: 16,
+    marginBottom: 8,
+    textAlign: 'center',
+  },
+  emptySubtitle: {
+    color: '#9CA3AF',
+    fontSize: 16,
+    textAlign: 'center',
+    lineHeight: 24,
+  },
+});
 
 export default MatchesScreen; 
