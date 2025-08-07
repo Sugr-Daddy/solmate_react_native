@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -6,6 +6,8 @@ import {
   Dimensions,
   ScrollView,
   StatusBar,
+  StyleSheet,
+  TouchableOpacity,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import Swiper from 'react-native-deck-swiper';
@@ -16,7 +18,7 @@ import { solanaService } from '../services/solana';
 
 const { width, height } = Dimensions.get('window');
 
-// Enhanced mock data with high-quality images and better profiles
+// Enhanced mock data with diverse photos for each user
 const MOCK_USERS: User[] = [
   {
     id: '1',
@@ -25,7 +27,13 @@ const MOCK_USERS: User[] = [
     name: 'Sophia',
     age: 26,
     bio: 'Adventure seeker & coffee enthusiast ☕️ Love hiking, photography, and spontaneous road trips. Looking for someone to explore life\'s beautiful moments with! 🌟',
-    photos: ['https://images.unsplash.com/photo-1494790108755-2616b612b786?w=400&h=600&fit=crop&crop=face&auto=format'],
+    photos: [
+      'https://images.unsplash.com/photo-1494790108755-2616b612b786?w=400&h=600&fit=crop&crop=face&auto=format',
+      'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=400&h=600&fit=crop&crop=face&auto=format',
+      'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=400&h=600&fit=crop&crop=face&auto=format',
+      'https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=400&h=600&fit=crop&crop=face&auto=format',
+      'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400&h=600&fit=crop&crop=face&auto=format',
+    ],
     preferredTipAmount: 3,
     ghostedCount: 0,
     ghostedByCount: 0,
@@ -40,7 +48,13 @@ const MOCK_USERS: User[] = [
     name: 'Emma',
     age: 24,
     bio: 'Yoga instructor & wellness advocate 🧘‍♀️ Passionate about healthy living, meditation, and creating meaningful connections. Let\'s grow together! ✨',
-    photos: ['https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=400&h=600&fit=crop&crop=face&auto=format'],
+    photos: [
+      'https://images.unsplash.com/photo-1517841905240-472988babdf9?w=400&h=600&fit=crop&crop=face&auto=format',
+      'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=400&h=600&fit=crop&crop=face&auto=format',
+      'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=400&h=600&fit=crop&crop=face&auto=format',
+      'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=400&h=600&fit=crop&crop=face&auto=format',
+      'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=400&h=600&fit=crop&crop=face&auto=format',
+    ],
     preferredTipAmount: 5,
     ghostedCount: 1,
     ghostedByCount: 0,
@@ -55,7 +69,13 @@ const MOCK_USERS: User[] = [
     name: 'Isabella',
     age: 27,
     bio: 'Creative soul & art lover 🎨 Dog mom to the cutest golden retriever. Love museums, indie music, and deep conversations over wine 🍷',
-    photos: ['https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=400&h=600&fit=crop&crop=face&auto=format'],
+    photos: [
+      'https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=400&h=600&fit=crop&crop=face&auto=format',
+      'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400&h=600&fit=crop&crop=face&auto=format',
+      'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=400&h=600&fit=crop&crop=face&auto=format',
+      'https://images.unsplash.com/photo-1494790108755-2616b612b786?w=400&h=600&fit=crop&crop=face&auto=format',
+      'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=400&h=600&fit=crop&crop=face&auto=format',
+    ],
     preferredTipAmount: 2,
     ghostedCount: 0,
     ghostedByCount: 0,
@@ -70,7 +90,13 @@ const MOCK_USERS: User[] = [
     name: 'Olivia',
     age: 25,
     bio: 'Tech enthusiast & fitness lover 💪 Startup founder by day, gym rat by night. Looking for someone who shares my passion for innovation and health! 🚀',
-    photos: ['https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=400&h=600&fit=crop&crop=face&auto=format'],
+    photos: [
+      'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=400&h=600&fit=crop&crop=face&auto=format',
+      'https://images.unsplash.com/photo-1494790108755-2616b612b786?w=400&h=600&fit=crop&crop=face&auto=format',
+      'https://images.unsplash.com/photo-1517841905240-472988babdf9?w=400&h=600&fit=crop&crop=face&auto=format',
+      'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=400&h=600&fit=crop&crop=face&auto=format',
+      'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=400&h=600&fit=crop&crop=face&auto=format',
+    ],
     preferredTipAmount: 4,
     ghostedCount: 0,
     ghostedByCount: 1,
@@ -85,7 +111,13 @@ const MOCK_USERS: User[] = [
     name: 'Ava',
     age: 23,
     bio: 'Foodie & travel blogger 🌍 Always on the hunt for the best restaurants and hidden gems. Let\'s create memories over amazing food! 🍕✈️',
-    photos: ['https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400&h=600&fit=crop&crop=face&auto=format'],
+    photos: [
+      'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=400&h=600&fit=crop&crop=face&auto=format',
+      'https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=400&h=600&fit=crop&crop=face&auto=format',
+      'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400&h=600&fit=crop&crop=face&auto=format',
+      'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=400&h=600&fit=crop&crop=face&auto=format',
+      'https://images.unsplash.com/photo-1494790108755-2616b612b786?w=400&h=600&fit=crop&crop=face&auto=format',
+    ],
     preferredTipAmount: 3,
     ghostedCount: 2,
     ghostedByCount: 0,
@@ -99,31 +131,34 @@ const MOCK_USERS: User[] = [
     gender: 'female',
     name: 'Mia',
     age: 28,
-    bio: 'Environmental scientist & nature lover 🌿 Passionate about sustainability and outdoor adventures. Looking for someone to protect our planet with! 🌎',
-    photos: ['https://images.unsplash.com/photo-1489424731084-a5d8b219a5bb?w=400&h=600&fit=crop&crop=face&auto=format'],
-    preferredTipAmount: 1,
+    bio: 'Bookworm & nature lover 📚🌿 Hiking trails, cozy cafes, and deep conversations are my happy places. Looking for someone to share adventures with! 🏔️',
+    photos: [
+      'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=400&h=600&fit=crop&crop=face&auto=format',
+      'https://images.unsplash.com/photo-1494790108755-2616b612b786?w=400&h=600&fit=crop&crop=face&auto=format',
+      'https://images.unsplash.com/photo-1517841905240-472988babdf9?w=400&h=600&fit=crop&crop=face&auto=format',
+      'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=400&h=600&fit=crop&crop=face&auto=format',
+      'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=400&h=600&fit=crop&crop=face&auto=format',
+    ],
+    preferredTipAmount: 2,
     ghostedCount: 0,
     ghostedByCount: 0,
-    matchCount: 6,
+    matchCount: 9,
     createdAt: new Date(),
     updatedAt: new Date(),
   },
 ];
 
 const DiscoveryScreen: React.FC = () => {
+  const [users, setUsers] = useState<User[]>(MOCK_USERS);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [walletData, setWalletData] = useState<any>(null);
+  const [isAutoAdvancing, setIsAutoAdvancing] = useState(true);
+  const [isPaused, setIsPaused] = useState(false);
+  const autoAdvanceTimerRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Fetch wallet data
   const { data: wallet } = useQuery({
     queryKey: ['wallet'],
     queryFn: () => solanaService.connectWallet(),
-  });
-
-  // Mock function to get users (in real app, this would be an API call)
-  const { data: users = MOCK_USERS } = useQuery({
-    queryKey: ['users'],
-    queryFn: () => Promise.resolve(MOCK_USERS),
   });
 
   useEffect(() => {
@@ -132,9 +167,25 @@ const DiscoveryScreen: React.FC = () => {
     }
   }, [wallet]);
 
+  // Auto-advance to next profile after 2 seconds
+  useEffect(() => {
+    if (isAutoAdvancing && !isPaused && currentIndex < users.length - 1) {
+      autoAdvanceTimerRef.current = setTimeout(() => {
+        setCurrentIndex(prev => prev + 1);
+      }, 2000);
+    }
+
+    return () => {
+      if (autoAdvanceTimerRef.current) {
+        clearTimeout(autoAdvanceTimerRef.current);
+      }
+    };
+  }, [isAutoAdvancing, isPaused, currentIndex, users.length]);
+
   const handleTip = async (amount: number) => {
     if (!walletData?.isConnected) {
-      Alert.alert('Wallet Not Connected', 'Please connect your wallet to send tips');
+      // Silently handle wallet not connected - no popup
+      console.log('Wallet not connected');
       return;
     }
 
@@ -144,7 +195,8 @@ const DiscoveryScreen: React.FC = () => {
     );
 
     if (!hasSufficientBalance) {
-      Alert.alert('Insufficient Balance', 'You don\'t have enough USDC to send this tip');
+      // Silently handle insufficient balance - no popup
+      console.log('Insufficient USDC balance');
       return;
     }
 
@@ -156,20 +208,22 @@ const DiscoveryScreen: React.FC = () => {
       );
 
       if (transaction) {
-        Alert.alert('Tip Sent!', `Successfully sent $${amount} USDC tip`);
+        // Silently handle successful tip - no popup
+        console.log(`Tip sent: $${amount} USDC`);
       }
     } catch (error) {
-      Alert.alert('Error', 'Failed to send tip. Please try again.');
+      // Silently handle error - no popup
+      console.log('Failed to send tip:', error);
     }
   };
 
   const handleSwipe = (direction: 'left' | 'right') => {
     if (direction === 'right') {
-      // Handle like
-      Alert.alert('Liked!', 'You liked this profile');
+      // Silently handle like - no popup
+      console.log('Profile liked');
     } else {
-      // Handle pass
-      Alert.alert('Passed', 'You passed on this profile');
+      // Silently handle pass - no popup
+      console.log('Profile passed');
     }
     
     setCurrentIndex(prev => Math.min(prev + 1, users.length - 1));
@@ -184,14 +238,22 @@ const DiscoveryScreen: React.FC = () => {
     />
   );
 
+  const handlePauseResume = () => {
+    setIsPaused(!isPaused);
+    Alert.alert(
+      isPaused ? 'Auto-advance Resumed' : 'Auto-advance Paused',
+      isPaused ? 'Profiles will continue advancing automatically' : 'Tap to resume',
+      [{ text: 'OK' }],
+      { cancelable: true }
+    );
+  };
+
   const renderEmptyState = () => (
-    <View className="flex-1 justify-center items-center bg-background-primary px-6">
-      <View className="bg-background-secondary rounded-3xl p-8 items-center">
+    <View style={styles.emptyContainer}>
+      <View style={styles.emptyCard}>
         <Ionicons name="heart-outline" size={64} color="#00F90C" />
-        <Text className="text-white text-2xl font-bold mt-4 mb-2">
-          No More Profiles
-        </Text>
-        <Text className="text-gray-400 text-center text-base">
+        <Text style={styles.emptyTitle}>No More Profiles</Text>
+        <Text style={styles.emptySubtitle}>
           You've seen all available profiles for now. Check back later for new matches!
         </Text>
       </View>
@@ -203,43 +265,53 @@ const DiscoveryScreen: React.FC = () => {
   }
 
   return (
-    <View className="flex-1 bg-background-primary">
+    <View style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor="#0A0A0A" />
       
       {/* Header */}
-      <View className="pt-12 pb-4 px-6 bg-background-primary">
-        <View className="flex-row justify-between items-center">
+      <View style={styles.header}>
+        <View style={styles.headerContent}>
           <View>
-            <Text className="text-white text-2xl font-bold">Solmate</Text>
-            <Text className="text-gray-400 text-sm">Discover amazing people</Text>
+            <Text style={styles.headerTitle}>Solmate</Text>
+            <Text style={styles.headerSubtitle}>Discover amazing people</Text>
           </View>
-          <View className="flex-row items-center space-x-2">
-            <View className="bg-primary/20 px-3 py-1 rounded-full">
-              <Text className="text-primary text-sm font-semibold">
+          <View style={styles.headerControls}>
+            <View style={styles.profileCount}>
+              <Text style={styles.profileCountText}>
                 {users.length} profiles
               </Text>
             </View>
+            <TouchableOpacity 
+              style={styles.pauseButton}
+              onPress={handlePauseResume}
+            >
+              <Ionicons 
+                name={isPaused ? "play" : "pause"} 
+                size={20} 
+                color={isPaused ? "#00F90C" : "#FF6B6B"} 
+              />
+            </TouchableOpacity>
           </View>
         </View>
       </View>
 
       {/* Swiper Container */}
-      <View className="flex-1 px-4 pb-6">
+      <View style={styles.swiperContainer}>
         <Swiper
           cards={users}
           renderCard={renderCard}
-          onSwipedLeft={(index) => handleSwipe('left')}
-          onSwipedRight={(index) => handleSwipe('right')}
+          onSwipedLeft={(cardIndex) => handleSwipe('left')}
+          onSwipedRight={(cardIndex) => handleSwipe('right')}
           cardIndex={currentIndex}
-          backgroundColor="transparent"
+          backgroundColor={'transparent'}
           stackSize={3}
-          cardVerticalMargin={20}
+          cardVerticalMargin={0}
           cardHorizontalMargin={0}
           animateOverlayLabelsOpacity
           overlayLabels={{
             left: {
               element: (
-                <View className="bg-red-500 px-6 py-3 rounded-full">
+                <View style={styles.leftOverlay}>
                   <Ionicons name="close" size={24} color="white" />
                 </View>
               ),
@@ -255,7 +327,7 @@ const DiscoveryScreen: React.FC = () => {
             },
             right: {
               element: (
-                <View className="bg-primary px-6 py-3 rounded-full">
+                <View style={styles.rightOverlay}>
                   <Ionicons name="heart" size={24} color="black" />
                 </View>
               ),
@@ -275,5 +347,106 @@ const DiscoveryScreen: React.FC = () => {
     </View>
   );
 };
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#0A0A0A',
+  },
+  header: {
+    paddingTop: 48,
+    paddingBottom: 16,
+    paddingHorizontal: 24,
+    backgroundColor: '#0A0A0A',
+  },
+  headerContent: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  headerControls: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  headerTitle: {
+    color: '#FFFFFF',
+    fontSize: 24,
+    fontWeight: 'bold',
+  },
+  headerSubtitle: {
+    color: '#9CA3AF',
+    fontSize: 14,
+  },
+  profileCount: {
+    backgroundColor: 'rgba(0, 249, 12, 0.2)',
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+    borderRadius: 20,
+  },
+  profileCountText: {
+    color: '#00F90C',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  pauseButton: {
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    padding: 8,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.2)',
+  },
+  swiperContainer: {
+    flex: 1,
+    paddingHorizontal: 16,
+    paddingBottom: 24,
+  },
+  leftOverlay: {
+    backgroundColor: '#FF6B6B',
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 24,
+  },
+  rightOverlay: {
+    backgroundColor: '#00F90C',
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 24,
+  },
+  emptyContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 24,
+  },
+  emptyCard: {
+    backgroundColor: '#1A1A1A',
+    borderRadius: 24,
+    padding: 32,
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 4,
+    },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 6,
+  },
+  emptyTitle: {
+    color: '#FFFFFF',
+    fontSize: 24,
+    fontWeight: 'bold',
+    marginTop: 16,
+    marginBottom: 8,
+    textAlign: 'center',
+  },
+  emptySubtitle: {
+    color: '#9CA3AF',
+    fontSize: 16,
+    textAlign: 'center',
+    lineHeight: 24,
+  },
+});
 
 export default DiscoveryScreen; 
