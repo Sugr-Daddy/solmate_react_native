@@ -142,14 +142,14 @@ const MatchCard: React.FC<MatchCardProps> = ({ user, onTip, onSwipe }) => {
             onPress={() => onSwipe('left')}
             style={styles.actionButton}
           >
-            <Ionicons name="close" size={32} color="#FF6B6B" />
+            <Ionicons name="close" size={28} color="#FF6B6B" />
           </TouchableOpacity>
 
           <TouchableOpacity
             onPress={() => onSwipe('right')}
             style={styles.likeButton}
           >
-            <Ionicons name="heart" size={32} color="#000000" />
+            <Ionicons name="heart" size={28} color="#000000" />
           </TouchableOpacity>
         </View>
       </View>
@@ -160,7 +160,7 @@ const MatchCard: React.FC<MatchCardProps> = ({ user, onTip, onSwipe }) => {
 const styles = StyleSheet.create({
   card: {
     width: width - 32,
-    height: height * 0.75,
+    height: height * 0.8, // Increased from 0.75 for more space
     backgroundColor: '#1A1A1A',
     borderRadius: 24,
     overflow: 'hidden',
@@ -175,11 +175,14 @@ const styles = StyleSheet.create({
   },
   imageContainer: {
     position: 'relative',
-    height: 384,
+    height: height * 0.45, // Dynamic height based on screen, was fixed 384px
+    minHeight: 300, // Ensure minimum height
+    maxHeight: 500, // Prevent excessive height on large screens
   },
   backgroundImage: {
     width: '100%',
     height: '100%',
+    resizeMode: 'cover', // Ensure proper scaling without cropping faces
   },
   gradientOverlay: {
     position: 'absolute',
@@ -187,7 +190,7 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    backgroundColor: 'rgba(0, 0, 0, 0.8)',
+    backgroundColor: 'rgba(0, 0, 0, 0.4)', // Reduced opacity from 0.8 to 0.4
   },
   ghostTag: {
     position: 'absolute',
@@ -238,11 +241,12 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   userInfo: {
-    padding: 24,
+    padding: 20, // Reduced from 24
     backgroundColor: '#1A1A1A',
+    flex: 1, // Allow flexible sizing
   },
   bioContainer: {
-    marginBottom: 16,
+    marginBottom: 12, // Reduced from 16
   },
   userName: {
     fontSize: 24,
@@ -256,13 +260,13 @@ const styles = StyleSheet.create({
     lineHeight: 24,
   },
   tipContainer: {
-    marginBottom: 24,
+    marginBottom: 16, // Reduced from 24
   },
   tipLabel: {
     color: '#9CA3AF',
-    fontSize: 14,
+    fontSize: 13, // Slightly smaller
     fontWeight: '500',
-    marginBottom: 12,
+    marginBottom: 8, // Reduced from 12
     textAlign: 'center',
   },
   tipButtons: {
@@ -294,12 +298,13 @@ const styles = StyleSheet.create({
   actionButtons: {
     flexDirection: 'row',
     justifyContent: 'center',
-    gap: 24,
+    gap: 20, // Reduced from 24
+    marginTop: 4, // Add some top margin
   },
   actionButton: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
+    width: 56, // Reduced from 64
+    height: 56, // Reduced from 64
+    borderRadius: 28, // Adjusted for new size
     backgroundColor: 'rgba(255, 255, 255, 0.1)',
     alignItems: 'center',
     justifyContent: 'center',
@@ -315,9 +320,9 @@ const styles = StyleSheet.create({
     elevation: 6,
   },
   likeButton: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
+    width: 56, // Reduced from 64
+    height: 56, // Reduced from 64
+    borderRadius: 28, // Adjusted for new size
     backgroundColor: '#00F90C',
     alignItems: 'center',
     justifyContent: 'center',

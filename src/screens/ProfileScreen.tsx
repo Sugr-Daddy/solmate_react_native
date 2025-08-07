@@ -34,13 +34,25 @@ const MOCK_USER: User = {
   updatedAt: new Date(),
 };
 
-const ProfileScreen: React.FC = () => {
+interface ProfileScreenProps {
+  currentUser: User | null;
+  onSignOut: () => void;
+}
+
+const ProfileScreen: React.FC<ProfileScreenProps> = ({ currentUser, onSignOut }) => {
   const [isEditing, setIsEditing] = useState(false);
-  const [user, setUser] = useState<User>(MOCK_USER);
+  const [user, setUser] = useState<User>(currentUser || MOCK_USER);
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
   const [locationEnabled, setLocationEnabled] = useState(true);
   const [privacyEnabled, setPrivacyEnabled] = useState(false);
   const [showPhotoModal, setShowPhotoModal] = useState(false);
+
+  // Update local state when currentUser changes
+  React.useEffect(() => {
+    if (currentUser) {
+      setUser(currentUser);
+    }
+  }, [currentUser]);
 
   const { data: wallet } = useQuery({
     queryKey: ['wallet'],
@@ -67,9 +79,7 @@ const ProfileScreen: React.FC = () => {
         {
           text: 'Logout',
           style: 'destructive',
-          onPress: () => {
-            Alert.alert('Logged Out', 'You have been logged out successfully');
-          },
+          onPress: onSignOut,
         },
       ]
     );
@@ -94,6 +104,14 @@ const ProfileScreen: React.FC = () => {
 
   const renderProfileHeader = () => (
     <View style={styles.profileHeader}>
+      {/* Add logout button */}
+      <TouchableOpacity 
+        style={styles.headerLogoutButton}
+        onPress={onSignOut}
+      >
+        <Ionicons name="log-out-outline" size={24} color="#00F90C" />
+      </TouchableOpacity>
+      
       <View style={styles.profileImageContainer}>
         <View style={styles.imageContainer}>
           <Image
@@ -398,6 +416,14 @@ const styles = StyleSheet.create({
     padding: 24,
     margin: 16,
     marginBottom: 24,
+    position: 'relative',
+  },
+  headerLogoutButton: {
+    position: 'absolute',
+    top: 16,
+    right: 16,
+    zIndex: 1,
+    padding: 8,
   },
   profileImageContainer: {
     flexDirection: 'row',

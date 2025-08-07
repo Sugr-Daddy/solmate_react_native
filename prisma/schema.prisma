@@ -1,0 +1,132 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id                String   @id @default(cuid())
+  walletAddress     String   @unique
+  gender            Gender
+  name              String
+  age               Int
+  bio               String
+  photos            String[]
+  preferredTipAmount Int     @default(3) // 1, 2, 3, 4, or 5 USDC
+  ghostedCount      Int      @default(0)
+  ghostedByCount    Int      @default(0)
+  matchCount        Int      @default(0)
+  isOnline          Boolean  @default(false)
+  lastActive        DateTime @default(now())
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  // Relationships
+  sentMatches       Match[]  @relation("SenderMatches")
+  receivedMatches   Match[]  @relation("ReceiverMatches")
+  transactions      Transaction[]
+  
+  @@map("users")
+}
+
+model Match {
+  id              String      @id @default(cuid())
+  senderId        String
+  receiverId      String
+  tipAmount       Int
+  status          MatchStatus @default(PENDING)
+  transactionHash String
+  dateScheduled   DateTime?
+  dateConfirmed   Boolean     @default(false)
+  createdAt       DateTime    @default(now())
+  expiresAt       DateTime
+  ghostedAt       DateTime?
+  acceptedAt      DateTime?
+  rejectedAt      DateTime?
+  
+  // Relationships
+  sender          User        @relation("SenderMatches", fields: [senderId], references: [id])
+  receiver        User        @relation("ReceiverMatches", fields: [receiverId], references: [id])
+  transactions    Transaction[]
+  
+  @@unique([senderId, receiverId])
+  @@map("matches")
+}
+
+model Transaction {
+  id              String            @id @default(cuid())
+  walletAddress   String
+  type            TransactionType
+  amount          Int               // Amount in USDC cents (multiply by 100)
+  transactionHash String
+  matchId         String?
+  timestamp       DateTime          @default(now())
+  status          TransactionStatus @default(PENDING)
+  
+  // Relationships
+  user            User              @relation(fields: [walletAddress], references: [walletAddress])
+  match           Match?            @relation(fields: [matchId], references: [id])
+  
+  @@map("transactions")
+}
+
+model EscrowTransaction {
+  id              String            @id @default(cuid())
+  matchId         String            @unique
+  senderAddress   String
+  receiverAddress String
+  amount          Int               // Amount in USDC cents
+  escrowAddress   String            // Temporary wallet holding the funds
+  status          EscrowStatus      @default(HELD)
+  createdAt       DateTime          @default(now())
+  releasedAt      DateTime?
+  refundedAt      DateTime?
+  
+  @@map("escrow_transactions")
+}
+
+enum Gender {
+  MALE
+  FEMALE
+}
+
+enum MatchStatus {
+  PENDING
+  ACCEPTED
+  REJECTED
+  GHOSTED
+  REFUNDED
+  EXPIRED
+  DATE_CONFIRMED
+}
+
+enum TransactionStatus {
+  PENDING
+  CONFIRMED
+  FAILED
+}
+
+enum TransactionType {
+  TIP_SENT
+  TIP_RECEIVED
+  REFUND
+  GHOST_FORFEIT
+  GHOSTED
+  DATE_PAYMENT
+}
+
+enum EscrowStatus {
+  HELD
+  RELEASED
+  REFUNDED
+}

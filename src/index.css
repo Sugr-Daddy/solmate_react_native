@@ -22,10 +22,18 @@ html, body, #root {
 
 /* Web-specific overrides for React Native Web */
 .web-container {
-  max-width: 480px;
-  margin: 0 auto;
-  height: 100vh;
-  overflow: hidden;
+  width: 100%;
+  min-height: 100vh;
+  height: auto;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+/* Remove max-width constraint for better full-screen experience */
+@media (min-width: 481px) {
+  .web-container {
+    width: 100%;
+  }
 }
 
 /* Custom scrollbar for web */

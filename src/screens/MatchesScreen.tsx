@@ -10,156 +10,103 @@ import {
   StyleSheet,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Match, User } from '../types';
 import { solanaService } from '../services/solana';
-
-// Enhanced mock matches data
-const MOCK_MATCHES: Match[] = [
-  {
-    id: 'match-1',
-    senderId: 'user-1',
-    receiverId: 'user-2',
-    tipAmount: 3,
-    status: 'pending',
-    transactionHash: 'tx-hash-1',
-    createdAt: new Date(Date.now() - 3600000), // 1 hour ago
-    expiresAt: new Date(Date.now() + 82800000), // 23 hours from now
-  },
-  {
-    id: 'match-2',
-    senderId: 'user-1',
-    receiverId: 'user-3',
-    tipAmount: 5,
-    status: 'accepted',
-    transactionHash: 'tx-hash-2',
-    createdAt: new Date(Date.now() - 86400000), // 1 day ago
-    expiresAt: new Date(Date.now() - 86400000),
-  },
-  {
-    id: 'match-3',
-    senderId: 'user-4',
-    receiverId: 'user-1',
-    tipAmount: 2,
-    status: 'ghosted',
-    transactionHash: 'tx-hash-3',
-    createdAt: new Date(Date.now() - 172800000), // 2 days ago
-    expiresAt: new Date(Date.now() - 172800000),
-    ghostedAt: new Date(Date.now() - 86400000),
-  },
-  {
-    id: 'match-4',
-    senderId: 'user-5',
-    receiverId: 'user-1',
-    tipAmount: 4,
-    status: 'pending',
-    transactionHash: 'tx-hash-4',
-    createdAt: new Date(Date.now() - 7200000), // 2 hours ago
-    expiresAt: new Date(Date.now() + 79200000), // 22 hours from now
-  },
-];
-
-const MOCK_USERS: { [key: string]: User } = {
-  'user-2': {
-    id: 'user-2',
-    walletAddress: 'mock-wallet-2',
-    gender: 'female',
-    name: 'Sophia',
-    age: 26,
-    bio: 'Adventure seeker & coffee enthusiast ☕️',
-    photos: ['https://images.unsplash.com/photo-1494790108755-2616b612b786?w=400&h=600&fit=crop&crop=face&auto=format'],
-    preferredTipAmount: 3,
-    ghostedCount: 0,
-    ghostedByCount: 0,
-    matchCount: 12,
-    createdAt: new Date(),
-    updatedAt: new Date(),
-  },
-  'user-3': {
-    id: 'user-3',
-    walletAddress: 'mock-wallet-3',
-    gender: 'female',
-    name: 'Emma',
-    age: 24,
-    bio: 'Yoga instructor & wellness advocate 🧘‍♀️',
-    photos: ['https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=400&h=600&fit=crop&crop=face&auto=format'],
-    preferredTipAmount: 5,
-    ghostedCount: 1,
-    ghostedByCount: 0,
-    matchCount: 18,
-    createdAt: new Date(),
-    updatedAt: new Date(),
-  },
-  'user-4': {
-    id: 'user-4',
-    walletAddress: 'mock-wallet-4',
-    gender: 'female',
-    name: 'Isabella',
-    age: 27,
-    bio: 'Creative soul & art lover 🎨',
-    photos: ['https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=400&h=600&fit=crop&crop=face&auto=format'],
-    preferredTipAmount: 2,
-    ghostedCount: 0,
-    ghostedByCount: 0,
-    matchCount: 8,
-    createdAt: new Date(),
-    updatedAt: new Date(),
-  },
-  'user-5': {
-    id: 'user-5',
-    walletAddress: 'mock-wallet-5',
-    gender: 'female',
-    name: 'Olivia',
-    age: 25,
-    bio: 'Tech enthusiast & fitness lover 💪',
-    photos: ['https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=400&h=600&fit=crop&crop=face&auto=format'],
-    preferredTipAmount: 4,
-    ghostedCount: 0,
-    ghostedByCount: 1,
-    matchCount: 15,
-    createdAt: new Date(),
-    updatedAt: new Date(),
-  },
-};
+import { apiService } from '../services/api';
 
 const MatchesScreen: React.FC = () => {
-  const { data: matches = MOCK_MATCHES } = useQuery({
-    queryKey: ['matches'],
-    queryFn: () => Promise.resolve(MOCK_MATCHES),
+  // For demo purposes, we'll use the sugar daddy wallet
+  const currentUserWallet = 'demo-sugar-daddy-1';
+  const queryClient = useQueryClient();
+
+  const { data: rawMatches = [], isLoading } = useQuery({
+    queryKey: ['matches', currentUserWallet],
+    queryFn: () => apiService.getUserMatches(currentUserWallet),
+    enabled: !!currentUserWallet,
   });
 
-  const getMatchUser = (match: Match): User | null => {
-    const userId = match.senderId === 'user-1' ? match.receiverId : match.senderId;
-    return MOCK_USERS[userId] || null;
+  // Transform database matches to app format
+  const matches = React.useMemo(() => {
+    return rawMatches.map((dbMatch: any) => ({
+      ...dbMatch,
+      status: dbMatch.status.toLowerCase() as 'pending' | 'accepted' | 'rejected' | 'ghosted' | 'refunded',
+    }));
+  }, [rawMatches]);
+
+  const acceptMatchMutation = useMutation({
+    mutationFn: async (matchId: string) => {
+      return await apiService.acceptMatch(matchId);
+    },
+    onSuccess: (match: any) => {
+      queryClient.invalidateQueries({ queryKey: ['matches', currentUserWallet] });
+      const userName = match.sender?.walletAddress === currentUserWallet ? match.receiver?.name : match.sender?.name;
+      Alert.alert('Match Accepted! 💖', `You and ${userName} are now matched!`);
+    },
+  });
+
+  const rejectMatchMutation = useMutation({
+    mutationFn: async (matchId: string) => {
+      return await apiService.rejectMatch(matchId);
+    },
+    onSuccess: (match: any) => {
+      queryClient.invalidateQueries({ queryKey: ['matches', currentUserWallet] });
+      const userName = match.sender?.walletAddress === currentUserWallet ? match.receiver?.name : match.sender?.name;
+      Alert.alert('Match Rejected', `${userName} will be refunded.`);
+    },
+  });
+
+  const getMatchUser = (match: any): User | null => {
+    // Return the other user (not the current user)
+    if (match.sender?.walletAddress === currentUserWallet) {
+      return match.receiver ? {
+        ...match.receiver,
+        gender: match.receiver.gender.toLowerCase() as 'male' | 'female'
+      } : null;
+    } else {
+      return match.sender ? {
+        ...match.sender,
+        gender: match.sender.gender.toLowerCase() as 'male' | 'female'
+      } : null;
+    }
   };
 
   const getMatchStatus = (status: string) => {
     switch (status) {
-      case 'pending':
+      case 'PENDING':
         return { text: 'Pending Response', color: '#F59E0B', icon: 'time-outline' };
-      case 'accepted':
+      case 'ACCEPTED':
         return { text: 'Match Accepted!', color: '#00F90C', icon: 'checkmark-circle-outline' };
-      case 'ghosted':
+      case 'GHOSTED':
         return { text: 'Ghosted', color: '#8B5CF6', icon: 'close-circle-outline' };
-      case 'expired':
+      case 'REJECTED':
+        return { text: 'Rejected', color: '#FF6B6B', icon: 'close-circle-outline' };
+      case 'EXPIRED':
         return { text: 'Expired', color: '#6B7280', icon: 'alert-circle-outline' };
       default:
         return { text: 'Unknown', color: '#6B7280', icon: 'help-circle-outline' };
     }
   };
 
-  const formatTimeAgo = (timestamp: Date) => {
+  const formatTimeAgo = (timestamp: Date | string) => {
     const now = new Date();
-    const diffInHours = Math.floor((now.getTime() - timestamp.getTime()) / (1000 * 60 * 60));
+    const dateObject = typeof timestamp === 'string' ? new Date(timestamp) : timestamp;
+    
+    // Check if the date is valid
+    if (isNaN(dateObject.getTime())) {
+      return 'Recently';
+    }
+    
+    const diffInHours = Math.floor((now.getTime() - dateObject.getTime()) / (1000 * 60 * 60));
     
     if (diffInHours < 1) return 'Just now';
     if (diffInHours < 24) return `${diffInHours}h ago`;
     const diffInDays = Math.floor(diffInHours / 24);
     if (diffInDays < 7) return `${diffInDays}d ago`;
-    return timestamp.toLocaleDateString();
+    return dateObject.toLocaleDateString();
   };
 
-  const handleMatchAction = (match: Match, action: 'accept' | 'reject') => {
+  const handleMatchAction = (match: any, action: 'accept' | 'reject') => {
     const user = getMatchUser(match);
     if (!user) return;
 
@@ -171,9 +118,7 @@ const MatchesScreen: React.FC = () => {
           { text: 'Cancel', style: 'cancel' },
           {
             text: 'Accept',
-            onPress: () => {
-              Alert.alert('Match Accepted!', `You and ${user.name} are now matched!`);
-            },
+            onPress: () => acceptMatchMutation.mutate(match.id),
           },
         ]
       );
@@ -186,9 +131,7 @@ const MatchesScreen: React.FC = () => {
           {
             text: 'Reject',
             style: 'destructive',
-            onPress: () => {
-              Alert.alert('Match Rejected', `${user.name} will be refunded.`);
-            },
+            onPress: () => rejectMatchMutation.mutate(match.id),
           },
         ]
       );
@@ -201,7 +144,9 @@ const MatchesScreen: React.FC = () => {
     
     if (!user) return null;
 
-    const isIncoming = match.receiverId === 'user-1';
+    // Check if this is an incoming match (the current user is the receiver)
+    const currentUser = rawMatches.find(m => m.id === match.id);
+    const isIncoming = currentUser?.receiver?.walletAddress === currentUserWallet;
 
     return (
       <View style={styles.matchCard}>
@@ -326,7 +271,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#0A0A0A',
   },
   header: {
-    paddingTop: 48,
+    paddingTop: 20, // Reduced from 48 since no navigation header
     paddingBottom: 16,
     paddingHorizontal: 24,
     backgroundColor: '#0A0A0A',

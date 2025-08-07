@@ -6,26 +6,35 @@ import {
   ScrollView,
   Alert,
   Dimensions,
+  TextInput,
+  StyleSheet,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
   withSpring,
-  withTiming,
   interpolate,
 } from 'react-native-reanimated';
+import { useMutation } from '@tanstack/react-query';
 import { TIP_AMOUNTS } from '../constants';
 import { OnboardingData } from '../types';
+import { apiService } from '../services/api';
+import { solanaService } from '../services/solana';
 
-const { width, height } = Dimensions.get('window');
+const { width } = Dimensions.get('window');
 
-const OnboardingScreen: React.FC = () => {
+interface OnboardingScreenProps {
+  walletAddress: string;
+  onComplete: (user: any) => void;
+}
+
+const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ walletAddress, onComplete }) => {
   const [currentStep, setCurrentStep] = useState(0);
   const [onboardingData, setOnboardingData] = useState<OnboardingData>({
     gender: 'male',
-    tipAmount: 2,
-    photos: [],
+    tipAmount: 3,
+    photos: ['https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=400&h=600&fit=crop&crop=face&auto=format'],
     bio: '',
     name: '',
     age: 25,
@@ -34,13 +43,38 @@ const OnboardingScreen: React.FC = () => {
   // Animation values
   const genderAnimation = useSharedValue(0);
   const tipAnimation = useSharedValue(0);
-  const walletAnimation = useSharedValue(0);
+  const profileAnimation = useSharedValue(0);
 
   const steps = [
     { title: 'Choose Your Gender', subtitle: 'This helps us match you with the right people' },
     { title: 'Select Tip Amount', subtitle: 'Choose how much you want to tip for matches' },
-    { title: 'Connect Wallet', subtitle: 'Connect your Solana wallet to start tipping' },
+    { title: 'Complete Profile', subtitle: 'Tell us a bit about yourself' },
   ];
+
+  const createUserMutation = useMutation({
+    mutationFn: async (userData: typeof onboardingData) => {
+      return await apiService.onboardUser({
+        walletAddress,
+        gender: userData.gender,
+        name: userData.name,
+        age: userData.age,
+        bio: userData.bio,
+        photos: userData.photos,
+        preferredTipAmount: userData.tipAmount,
+      });
+    },
+    onSuccess: (user) => {
+      Alert.alert(
+        'Welcome to Solmate! 🎉',
+        'Your profile has been created successfully. Start swiping to find amazing matches!',
+        [{ text: 'Let\'s Go!', onPress: () => onComplete(user) }]
+      );
+    },
+    onError: (error) => {
+      console.error('Error creating user:', error);
+      Alert.alert('Error', 'Failed to create profile. Please try again.');
+    },
+  });
 
   const handleGenderSelect = (gender: 'male' | 'female') => {
     setOnboardingData(prev => ({ ...prev, gender }));
@@ -49,7 +83,7 @@ const OnboardingScreen: React.FC = () => {
     setTimeout(() => {
       setCurrentStep(1);
       tipAnimation.value = withSpring(1);
-    }, 500);
+    }, 300);
   };
 
   const handleTipSelect = (amount: number) => {
@@ -58,49 +92,43 @@ const OnboardingScreen: React.FC = () => {
     
     setTimeout(() => {
       setCurrentStep(2);
-      walletAnimation.value = withSpring(1);
-    }, 500);
+      profileAnimation.value = withSpring(1);
+    }, 300);
   };
 
-  const handleWalletConnect = async () => {
-    try {
-      // This would integrate with actual wallet providers
-      Alert.alert('Wallet Connected', 'Your Solana wallet has been connected successfully!');
-      
-      // Navigate to main app
-      // navigation.navigate('Discovery');
-    } catch (error) {
-      Alert.alert('Error', 'Failed to connect wallet. Please try again.');
+  const handleCompleteProfile = () => {
+    if (!onboardingData.name.trim() || !onboardingData.bio.trim()) {
+      Alert.alert('Missing Information', 'Please fill in your name and bio.');
+      return;
     }
+
+    if (onboardingData.age < 18 || onboardingData.age > 100) {
+      Alert.alert('Invalid Age', 'Please enter a valid age between 18 and 100.');
+      return;
+    }
+
+    createUserMutation.mutate(onboardingData);
   };
 
   const renderGenderSelection = () => (
     <Animated.View
       style={[
-        {
-          flex: 1,
-          justifyContent: 'center',
-          alignItems: 'center',
-          padding: 20,
-        },
+        styles.stepContainer,
         useAnimatedStyle(() => ({
-          opacity: interpolate(genderAnimation.value, [0, 1], [0, 1]),
-          transform: [{ scale: interpolate(genderAnimation.value, [0, 1], [0.8, 1]) }],
+          opacity: interpolate(genderAnimation.value, [0, 1], [1, 1]),
+          transform: [{ scale: interpolate(genderAnimation.value, [0, 1], [1, 1]) }],
         })),
       ]}
     >
-      <Text className="text-3xl font-bold text-white mb-8 text-center">
-        I am a...
-      </Text>
+      <Text style={styles.stepTitle}>I am a...</Text>
 
-      <View className="flex-row space-x-6">
+      <View style={styles.genderContainer}>
         <TouchableOpacity
           onPress={() => handleGenderSelect('male')}
-          className={`w-32 h-32 rounded-2xl justify-center items-center border-2 ${
-            onboardingData.gender === 'male'
-              ? 'border-primary bg-primary/20'
-              : 'border-gray-600 bg-background-secondary'
-          }`}
+          style={[
+            styles.genderButton,
+            onboardingData.gender === 'male' && styles.genderButtonActive
+          ]}
         >
           <Ionicons
             name="male"
@@ -108,21 +136,21 @@ const OnboardingScreen: React.FC = () => {
             color={onboardingData.gender === 'male' ? '#00F90C' : '#A0A0A0'}
           />
           <Text
-            className={`text-lg font-semibold mt-2 ${
-              onboardingData.gender === 'male' ? 'text-primary' : 'text-gray-400'
-            }`}
+            style={[
+              styles.genderText,
+              onboardingData.gender === 'male' && styles.genderTextActive
+            ]}
           >
-            Man
+            Sugar Daddy
           </Text>
         </TouchableOpacity>
 
         <TouchableOpacity
           onPress={() => handleGenderSelect('female')}
-          className={`w-32 h-32 rounded-2xl justify-center items-center border-2 ${
-            onboardingData.gender === 'female'
-              ? 'border-primary bg-primary/20'
-              : 'border-gray-600 bg-background-secondary'
-          }`}
+          style={[
+            styles.genderButton,
+            onboardingData.gender === 'female' && styles.genderButtonActive
+          ]}
         >
           <Ionicons
             name="female"
@@ -130,11 +158,12 @@ const OnboardingScreen: React.FC = () => {
             color={onboardingData.gender === 'female' ? '#00F90C' : '#A0A0A0'}
           />
           <Text
-            className={`text-lg font-semibold mt-2 ${
-              onboardingData.gender === 'female' ? 'text-primary' : 'text-gray-400'
-            }`}
+            style={[
+              styles.genderText,
+              onboardingData.gender === 'female' && styles.genderTextActive
+            ]}
           >
-            Woman
+            Sugar Baby
           </Text>
         </TouchableOpacity>
       </View>
@@ -144,144 +173,308 @@ const OnboardingScreen: React.FC = () => {
   const renderTipSelection = () => (
     <Animated.View
       style={[
-        {
-          flex: 1,
-          justifyContent: 'center',
-          alignItems: 'center',
-          padding: 20,
-        },
+        styles.stepContainer,
         useAnimatedStyle(() => ({
-          opacity: interpolate(tipAnimation.value, [0, 1], [0, 1]),
-          transform: [{ scale: interpolate(tipAnimation.value, [0, 1], [0.8, 1]) }],
+          opacity: interpolate(tipAnimation.value, [0, 1], [1, 1]),
         })),
       ]}
     >
-      <Text className="text-3xl font-bold text-white mb-8 text-center">
-        Choose Tip Amount
+      <Text style={styles.stepTitle}>Choose Tip Amount</Text>
+      <Text style={styles.stepSubtitle}>
+        This is the amount you'll {onboardingData.gender === 'male' ? 'pay' : 'receive'} for matches
       </Text>
 
-      <View className="space-y-4 w-full">
+      <View style={styles.tipContainer}>
         {TIP_AMOUNTS.map((tip) => (
           <TouchableOpacity
             key={tip.value}
             onPress={() => handleTipSelect(tip.value)}
-            className={`p-6 rounded-2xl border-2 ${
-              onboardingData.tipAmount === tip.value
-                ? 'border-primary bg-primary/20 animate-glow'
-                : 'border-gray-600 bg-background-secondary'
-            }`}
+            style={[
+              styles.tipButton,
+              onboardingData.tipAmount === tip.value && styles.tipButtonActive
+            ]}
           >
-            <View className="flex-row justify-between items-center">
-              <View>
-                <Text
-                  className={`text-2xl font-bold ${
-                    onboardingData.tipAmount === tip.value ? 'text-primary' : 'text-white'
-                  }`}
-                >
-                  {tip.label}
-                </Text>
-                <Text
-                  className={`text-sm ${
-                    onboardingData.tipAmount === tip.value ? 'text-primary' : 'text-gray-400'
-                  }`}
-                >
-                  {tip.description}
-                </Text>
-              </View>
-              <Ionicons
-                name={onboardingData.tipAmount === tip.value ? 'checkmark-circle' : 'ellipse-outline'}
-                size={24}
-                color={onboardingData.tipAmount === tip.value ? '#00F90C' : '#A0A0A0'}
-              />
+            <View style={styles.tipContent}>
+              <Text style={[
+                styles.tipAmount,
+                onboardingData.tipAmount === tip.value && styles.tipAmountActive
+              ]}>
+                {tip.label}
+              </Text>
+              <Text style={[
+                styles.tipDescription,
+                onboardingData.tipAmount === tip.value && styles.tipDescriptionActive
+              ]}>
+                {tip.description}
+              </Text>
             </View>
+            <Ionicons
+              name={onboardingData.tipAmount === tip.value ? 'checkmark-circle' : 'ellipse-outline'}
+              size={24}
+              color={onboardingData.tipAmount === tip.value ? '#00F90C' : '#A0A0A0'}
+            />
           </TouchableOpacity>
         ))}
       </View>
     </Animated.View>
   );
 
-  const renderWalletConnection = () => (
+  const renderProfileCompletion = () => (
     <Animated.View
       style={[
-        {
-          flex: 1,
-          justifyContent: 'center',
-          alignItems: 'center',
-          padding: 20,
-        },
+        styles.stepContainer,
         useAnimatedStyle(() => ({
-          opacity: interpolate(walletAnimation.value, [0, 1], [0, 1]),
-          transform: [{ scale: interpolate(walletAnimation.value, [0, 1], [0.8, 1]) }],
+          opacity: interpolate(profileAnimation.value, [0, 1], [1, 1]),
         })),
       ]}
     >
-      <Text className="text-3xl font-bold text-white mb-8 text-center">
-        Connect Your Wallet
-      </Text>
+      <Text style={styles.stepTitle}>Complete Your Profile</Text>
+      
+      <View style={styles.profileForm}>
+        <View style={styles.inputContainer}>
+          <Text style={styles.inputLabel}>Name</Text>
+          <TextInput
+            value={onboardingData.name}
+            onChangeText={(text) => setOnboardingData(prev => ({ ...prev, name: text }))}
+            style={styles.textInput}
+            placeholder="Enter your name"
+            placeholderTextColor="#9CA3AF"
+          />
+        </View>
 
-      <View className="w-full space-y-4">
-        <TouchableOpacity
-          onPress={handleWalletConnect}
-          className="bg-primary p-6 rounded-2xl items-center animate-glow"
-        >
-          <Ionicons name="wallet" size={32} color="#000000" />
-          <Text className="text-black text-lg font-bold mt-2">Connect Phantom Wallet</Text>
-        </TouchableOpacity>
+        <View style={styles.inputContainer}>
+          <Text style={styles.inputLabel}>Age</Text>
+          <TextInput
+            value={onboardingData.age.toString()}
+            onChangeText={(text) => setOnboardingData(prev => ({ ...prev, age: parseInt(text) || 18 }))}
+            style={styles.textInput}
+            placeholder="Enter your age"
+            placeholderTextColor="#9CA3AF"
+            keyboardType="numeric"
+          />
+        </View>
+
+        <View style={styles.inputContainer}>
+          <Text style={styles.inputLabel}>About You</Text>
+          <TextInput
+            value={onboardingData.bio}
+            onChangeText={(text) => setOnboardingData(prev => ({ ...prev, bio: text }))}
+            style={[styles.textInput, styles.bioInput]}
+            placeholder="Tell others about yourself, your interests, what you're looking for..."
+            placeholderTextColor="#9CA3AF"
+            multiline
+            numberOfLines={4}
+          />
+        </View>
 
         <TouchableOpacity
-          onPress={handleWalletConnect}
-          className="bg-background-secondary p-6 rounded-2xl items-center border border-gray-600"
+          onPress={handleCompleteProfile}
+          style={styles.completeButton}
+          disabled={createUserMutation.isPending}
         >
-          <Ionicons name="wallet" size={32} color="#00F90C" />
-          <Text className="text-white text-lg font-bold mt-2">Connect Solflare</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          onPress={handleWalletConnect}
-          className="bg-background-secondary p-6 rounded-2xl items-center border border-gray-600"
-        >
-          <Ionicons name="wallet" size={32} color="#00F90C" />
-          <Text className="text-white text-lg font-bold mt-2">Connect Backpack</Text>
+          <Text style={styles.completeButtonText}>
+            {createUserMutation.isPending ? 'Creating Profile...' : 'Complete Profile'}
+          </Text>
         </TouchableOpacity>
       </View>
-
-      <Text className="text-gray-400 text-center mt-8 px-4">
-        Your wallet will be used to send and receive USDC tips for matches
-      </Text>
     </Animated.View>
   );
 
   return (
-    <View className="flex-1 bg-background">
+    <View style={styles.container}>
       {/* Progress Bar */}
-      <View className="flex-row justify-center items-center pt-12 pb-4">
+      <View style={styles.progressContainer}>
         {steps.map((_, index) => (
           <View
             key={index}
-            className={`h-2 rounded-full mx-1 ${
-              index <= currentStep ? 'bg-primary' : 'bg-gray-600'
-            }`}
-            style={{ width: (width - 80) / steps.length }}
+            style={[
+              styles.progressBar,
+              { width: (width - 80) / steps.length },
+              index <= currentStep && styles.progressBarActive
+            ]}
           />
         ))}
       </View>
 
       {/* Step Title */}
-      <View className="px-6 pb-8">
-        <Text className="text-2xl font-bold text-white text-center">
+      <View style={styles.headerContainer}>
+        <Text style={styles.headerTitle}>
           {steps[currentStep]?.title}
         </Text>
-        <Text className="text-gray-400 text-center mt-2">
+        <Text style={styles.headerSubtitle}>
           {steps[currentStep]?.subtitle}
         </Text>
       </View>
 
       {/* Step Content */}
-      {currentStep === 0 && renderGenderSelection()}
-      {currentStep === 1 && renderTipSelection()}
-      {currentStep === 2 && renderWalletConnection()}
+      <ScrollView showsVerticalScrollIndicator={false}>
+        {currentStep === 0 && renderGenderSelection()}
+        {currentStep === 1 && renderTipSelection()}
+        {currentStep === 2 && renderProfileCompletion()}
+      </ScrollView>
     </View>
   );
 };
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#0A0A0A',
+  },
+  progressContainer: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingTop: 48,
+    paddingBottom: 16,
+    paddingHorizontal: 40,
+  },
+  progressBar: {
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: '#374151',
+    marginHorizontal: 4,
+  },
+  progressBarActive: {
+    backgroundColor: '#00F90C',
+  },
+  headerContainer: {
+    paddingHorizontal: 24,
+    paddingBottom: 32,
+  },
+  headerTitle: {
+    fontSize: 28,
+    fontWeight: 'bold',
+    color: '#FFFFFF',
+    textAlign: 'center',
+    marginBottom: 8,
+  },
+  headerSubtitle: {
+    fontSize: 16,
+    color: '#9CA3AF',
+    textAlign: 'center',
+  },
+  stepContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 24,
+  },
+  stepTitle: {
+    fontSize: 32,
+    fontWeight: 'bold',
+    color: '#FFFFFF',
+    marginBottom: 32,
+    textAlign: 'center',
+  },
+  stepSubtitle: {
+    fontSize: 16,
+    color: '#9CA3AF',
+    textAlign: 'center',
+    marginBottom: 32,
+  },
+  genderContainer: {
+    flexDirection: 'row',
+    gap: 24,
+  },
+  genderButton: {
+    width: 140,
+    height: 140,
+    borderRadius: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#1A1A1A',
+    borderWidth: 2,
+    borderColor: '#374151',
+  },
+  genderButtonActive: {
+    borderColor: '#00F90C',
+    backgroundColor: 'rgba(0, 249, 12, 0.1)',
+  },
+  genderText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#9CA3AF',
+    marginTop: 12,
+    textAlign: 'center',
+  },
+  genderTextActive: {
+    color: '#00F90C',
+  },
+  tipContainer: {
+    width: '100%',
+  },
+  tipButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#1A1A1A',
+    borderWidth: 2,
+    borderColor: '#374151',
+    borderRadius: 16,
+    padding: 20,
+    marginBottom: 16,
+  },
+  tipButtonActive: {
+    borderColor: '#00F90C',
+    backgroundColor: 'rgba(0, 249, 12, 0.1)',
+  },
+  tipContent: {
+    flex: 1,
+  },
+  tipAmount: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#FFFFFF',
+    marginBottom: 4,
+  },
+  tipAmountActive: {
+    color: '#00F90C',
+  },
+  tipDescription: {
+    fontSize: 14,
+    color: '#9CA3AF',
+  },
+  tipDescriptionActive: {
+    color: '#00F90C',
+  },
+  profileForm: {
+    width: '100%',
+  },
+  inputContainer: {
+    marginBottom: 20,
+  },
+  inputLabel: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#FFFFFF',
+    marginBottom: 8,
+  },
+  textInput: {
+    backgroundColor: '#1A1A1A',
+    borderWidth: 1,
+    borderColor: '#374151',
+    borderRadius: 12,
+    paddingVertical: 16,
+    paddingHorizontal: 16,
+    color: '#FFFFFF',
+    fontSize: 16,
+  },
+  bioInput: {
+    height: 100,
+    textAlignVertical: 'top',
+  },
+  completeButton: {
+    backgroundColor: '#00F90C',
+    borderRadius: 16,
+    paddingVertical: 16,
+    alignItems: 'center',
+    marginTop: 20,
+  },
+  completeButtonText: {
+    color: '#000000',
+    fontSize: 18,
+    fontWeight: 'bold',
+  },
+});
 
 export default OnboardingScreen; 

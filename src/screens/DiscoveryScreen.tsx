@@ -14,107 +14,36 @@ import { useQuery } from '@tanstack/react-query';
 import MatchCard from '../components/MatchCard';
 import { User, Match } from '../types';
 import { solanaService } from '../services/solana';
+import { apiService } from '../services/api';
 
 const { width, height } = Dimensions.get('window');
 
-// Enhanced mock data with high-quality images and better profiles
-const MOCK_USERS: User[] = [
-  {
-    id: '1',
-    walletAddress: 'mock-wallet-1',
-    gender: 'female',
-    name: 'Sophia',
-    age: 26,
-    bio: 'Adventure seeker & coffee enthusiast ☕️ Love hiking, photography, and spontaneous road trips. Looking for someone to explore life\'s beautiful moments with! 🌟',
-    photos: ['https://images.unsplash.com/photo-1494790108755-2616b612b786?w=400&h=600&fit=crop&crop=face&auto=format'],
-    preferredTipAmount: 3,
-    ghostedCount: 0,
-    ghostedByCount: 0,
-    matchCount: 12,
-    createdAt: new Date(),
-    updatedAt: new Date(),
-  },
-  {
-    id: '2',
-    walletAddress: 'mock-wallet-2',
-    gender: 'female',
-    name: 'Emma',
-    age: 24,
-    bio: 'Yoga instructor & wellness advocate 🧘‍♀️ Passionate about healthy living, meditation, and creating meaningful connections. Let\'s grow together! ✨',
-    photos: ['https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=400&h=600&fit=crop&crop=face&auto=format'],
-    preferredTipAmount: 5,
-    ghostedCount: 1,
-    ghostedByCount: 0,
-    matchCount: 18,
-    createdAt: new Date(),
-    updatedAt: new Date(),
-  },
-  {
-    id: '3',
-    walletAddress: 'mock-wallet-3',
-    gender: 'female',
-    name: 'Isabella',
-    age: 27,
-    bio: 'Creative soul & art lover 🎨 Dog mom to the cutest golden retriever. Love museums, indie music, and deep conversations over wine 🍷',
-    photos: ['https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=400&h=600&fit=crop&crop=face&auto=format'],
-    preferredTipAmount: 2,
-    ghostedCount: 0,
-    ghostedByCount: 0,
-    matchCount: 8,
-    createdAt: new Date(),
-    updatedAt: new Date(),
-  },
-  {
-    id: '4',
-    walletAddress: 'mock-wallet-4',
-    gender: 'female',
-    name: 'Olivia',
-    age: 25,
-    bio: 'Tech enthusiast & fitness lover 💪 Startup founder by day, gym rat by night. Looking for someone who shares my passion for innovation and health! 🚀',
-    photos: ['https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=400&h=600&fit=crop&crop=face&auto=format'],
-    preferredTipAmount: 4,
-    ghostedCount: 0,
-    ghostedByCount: 1,
-    matchCount: 15,
-    createdAt: new Date(),
-    updatedAt: new Date(),
-  },
-  {
-    id: '5',
-    walletAddress: 'mock-wallet-5',
-    gender: 'female',
-    name: 'Ava',
-    age: 23,
-    bio: 'Foodie & travel blogger 🌍 Always on the hunt for the best restaurants and hidden gems. Let\'s create memories over amazing food! 🍕✈️',
-    photos: ['https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400&h=600&fit=crop&crop=face&auto=format'],
-    preferredTipAmount: 3,
-    ghostedCount: 2,
-    ghostedByCount: 0,
-    matchCount: 22,
-    createdAt: new Date(),
-    updatedAt: new Date(),
-  },
-  {
-    id: '6',
-    walletAddress: 'mock-wallet-6',
-    gender: 'female',
-    name: 'Mia',
-    age: 28,
-    bio: 'Bookworm & nature lover 📚🌿 Hiking trails, cozy cafes, and deep conversations are my happy places. Looking for someone to share adventures with! 🏔️',
-    photos: ['https://images.unsplash.com/photo-1517841905240-472988babdf9?w=400&h=600&fit=crop&crop=face&auto=format'],
-    preferredTipAmount: 2,
-    ghostedCount: 0,
-    ghostedByCount: 0,
-    matchCount: 9,
-    createdAt: new Date(),
-    updatedAt: new Date(),
-  },
-];
-
 const DiscoveryScreen: React.FC = () => {
-  const [users, setUsers] = useState<User[]>(MOCK_USERS);
+  const [users, setUsers] = useState<User[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [walletData, setWalletData] = useState<any>(null);
+  
+  // For demo purposes, we'll use the sugar daddy wallet
+  const currentUserWallet = 'demo-sugar-daddy-1';
+
+  // Fetch discovery users from database
+  const { data: discoveryUsers, isLoading, refetch } = useQuery({
+    queryKey: ['discovery-users', currentUserWallet],
+    queryFn: () => apiService.getDiscoveryUsers(currentUserWallet, 10),
+    enabled: !!currentUserWallet,
+  });
+
+  // Update local state when data changes
+  useEffect(() => {
+    if (discoveryUsers) {
+      // Transform database users to match the expected User type
+      const transformedUsers = discoveryUsers.map(dbUser => ({
+        ...dbUser,
+        gender: dbUser.gender.toLowerCase() as 'male' | 'female', // Convert MALE/FEMALE to male/female
+      }));
+      setUsers(transformedUsers);
+    }
+  }, [discoveryUsers]);
 
   const { data: wallet } = useQuery({
     queryKey: ['wallet'],
@@ -124,54 +53,110 @@ const DiscoveryScreen: React.FC = () => {
   useEffect(() => {
     if (wallet) {
       setWalletData(wallet);
+    } else {
+      // Initialize with mock wallet data for demo
+      setWalletData({
+        address: currentUserWallet,
+        balance: 2.5,
+        usdcBalance: 150.0,
+        isConnected: true,
+      });
     }
-  }, [wallet]);
+  }, [wallet, currentUserWallet]);
 
   const handleTip = async (amount: number) => {
-    if (!walletData?.isConnected) {
-      // Silently handle wallet not connected - no popup
+    // Ensure wallet is connected or use mock data
+    const activeWallet = walletData || {
+      address: currentUserWallet,
+      balance: 2.5,
+      usdcBalance: 150.0,
+      isConnected: true,
+    };
+
+    if (!activeWallet?.isConnected) {
       console.log('Wallet not connected');
       return;
     }
 
-    const hasSufficientBalance = await solanaService.hasSufficientUSDC(
-      walletData.address,
-      amount
-    );
-
-    if (!hasSufficientBalance) {
-      // Silently handle insufficient balance - no popup
-      console.log('Insufficient USDC balance');
-      return;
-    }
-
     try {
+      const hasSufficientBalance = await solanaService.hasSufficientUSDC(
+        activeWallet.address,
+        amount
+      );
+
+      if (!hasSufficientBalance) {
+        console.log('Insufficient USDC balance');
+        return;
+      }
+
+      // Get the current user we're swiping on
+      const currentUser = users[currentIndex];
+      if (!currentUser) return;
+
       const transaction = await solanaService.sendTip(
-        walletData.address,
-        'recipient-wallet',
+        activeWallet.address,
+        currentUser.walletAddress,
         amount
       );
 
       if (transaction) {
-        // Silently handle successful tip - no popup
-        console.log(`Tip sent: $${amount} USDC`);
+        // Create match in database
+        try {
+          await apiService.createMatch(
+            currentUserWallet,
+            currentUser.walletAddress,
+            amount,
+            transaction.transactionHash
+          );
+          
+          console.log(`Tip sent: $${amount} USDC to ${currentUser.name}`);
+          Alert.alert(
+            'Tip Sent! 💰',
+            `You sent $${amount} USDC to ${currentUser.name}. They'll be notified of your interest!`
+          );
+          
+          // Refresh discovery users to exclude the newly matched user
+          refetch();
+        } catch (dbError: any) {
+          console.error('Database error:', dbError);
+          
+          // Handle duplicate match error gracefully
+          if (dbError.message?.includes('Match already exists')) {
+            console.log(`Match already exists with ${currentUser.name}`);
+            // Still refresh the list to ensure UI consistency
+            refetch();
+          } else {
+            Alert.alert(
+              'Error',
+              'Failed to create match. Please try again.'
+            );
+          }
+        }
       }
     } catch (error) {
-      // Silently handle error - no popup
-      console.log('Failed to send tip:', error);
+      console.error('Failed to send tip:', error);
     }
   };
 
-  const handleSwipe = (direction: 'left' | 'right') => {
+  const handleSwipe = async (direction: 'left' | 'right') => {
     if (direction === 'right') {
-      // Silently handle like - no popup
+      // Like - send a tip automatically
+      const currentUser = users[currentIndex];
+      if (currentUser) {
+        await handleTip(currentUser.preferredTipAmount);
+      }
       console.log('Profile liked');
     } else {
-      // Silently handle pass - no popup
+      // Pass
       console.log('Profile passed');
     }
     
     setCurrentIndex(prev => Math.min(prev + 1, users.length - 1));
+    
+    // If we're near the end, try to fetch more users
+    if (currentIndex >= users.length - 2) {
+      refetch();
+    }
   };
 
   const renderCard = (user: User, index: number) => (
@@ -277,7 +262,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#0A0A0A',
   },
   header: {
-    paddingTop: 48,
+    paddingTop: 20, // Reduced from 48 since no navigation header
     paddingBottom: 16,
     paddingHorizontal: 24,
     backgroundColor: '#0A0A0A',
