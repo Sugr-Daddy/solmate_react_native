@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -6,6 +6,8 @@ import {
   TouchableOpacity,
   Dimensions,
   StyleSheet,
+  FlatList,
+  Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, {
@@ -17,10 +19,18 @@ import Animated, {
 } from 'react-native-reanimated';
 import { MatchCardProps } from '../types';
 import { TIP_AMOUNTS } from '../constants';
+import PhotoGalleryModal from './PhotoGalleryModal';
 
 const { width, height } = Dimensions.get('window');
 
 const MatchCard: React.FC<MatchCardProps> = ({ user, onTip, onSwipe }) => {
+  const [currentPhotoIndex, setCurrentPhotoIndex] = useState(0);
+  const [showGalleryModal, setShowGalleryModal] = useState(false);
+  const [isAutoAdvancing, setIsAutoAdvancing] = useState(true);
+  const [isPaused, setIsPaused] = useState(false);
+  const autoAdvanceTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const photoTimerRef = useRef<NodeJS.Timeout | null>(null);
+  
   const scale = useSharedValue(1);
   const translateX = useSharedValue(0);
   const translateY = useSharedValue(0);
@@ -35,6 +45,38 @@ const MatchCard: React.FC<MatchCardProps> = ({ user, onTip, onSwipe }) => {
     opacity: opacity.value,
   }));
 
+  // Auto-advance to next profile after 2 seconds
+  useEffect(() => {
+    if (isAutoAdvancing && !isPaused) {
+      autoAdvanceTimerRef.current = setTimeout(() => {
+        onSwipe('right'); // Auto-like the profile
+      }, 2000);
+    }
+
+    return () => {
+      if (autoAdvanceTimerRef.current) {
+        clearTimeout(autoAdvanceTimerRef.current);
+      }
+    };
+  }, [isAutoAdvancing, isPaused, onSwipe]);
+
+  // Auto-advance to next photo every 1.5 seconds
+  useEffect(() => {
+    if (user.photos.length > 1 && !isPaused) {
+      photoTimerRef.current = setTimeout(() => {
+        setCurrentPhotoIndex((prevIndex) => 
+          (prevIndex + 1) % user.photos.length
+        );
+      }, 1500);
+    }
+
+    return () => {
+      if (photoTimerRef.current) {
+        clearTimeout(photoTimerRef.current);
+      }
+    };
+  }, [currentPhotoIndex, user.photos.length, isPaused]);
+
   const handleTip = (amount: number) => {
     // Animate tip button
     try {
@@ -46,6 +88,30 @@ const MatchCard: React.FC<MatchCardProps> = ({ user, onTip, onSwipe }) => {
     }
     
     onTip(amount);
+  };
+
+  const handlePhotoTap = (index: number) => {
+    // Navigate to next photo in the profile
+    const nextIndex = (index + 1) % user.photos.length;
+    setCurrentPhotoIndex(nextIndex);
+    
+    // Show brief feedback
+    Alert.alert(
+      `Photo ${nextIndex + 1} of ${user.photos.length}`,
+      'Tap to see next photo',
+      [{ text: 'OK' }],
+      { cancelable: true }
+    );
+  };
+
+  const handlePhotoLongPress = () => {
+    setIsPaused(!isPaused);
+    Alert.alert(
+      isPaused ? 'Auto-advance Resumed' : 'Auto-advance Paused',
+      isPaused ? 'Photos will continue advancing automatically' : 'Long press again to resume',
+      [{ text: 'OK' }],
+      { cancelable: true }
+    );
   };
 
   const getGhostingTag = () => {
@@ -72,6 +138,68 @@ const MatchCard: React.FC<MatchCardProps> = ({ user, onTip, onSwipe }) => {
     );
   };
 
+  const renderPhotoCarousel = () => (
+    <View style={styles.imageContainer}>
+      <FlatList
+        data={user.photos}
+        horizontal
+        pagingEnabled
+        showsHorizontalScrollIndicator={false}
+        onMomentumScrollEnd={(event) => {
+          const index = Math.round(event.nativeEvent.contentOffset.x / width);
+          setCurrentPhotoIndex(index);
+        }}
+        renderItem={({ item, index }) => (
+          <TouchableOpacity
+            style={styles.photoItem}
+            onPress={() => handlePhotoTap(index)}
+            onLongPress={handlePhotoLongPress}
+            activeOpacity={0.9}
+            delayLongPress={500}
+          >
+            <Image
+              source={{ uri: item || 'https://via.placeholder.com/400x600' }}
+              style={styles.backgroundImage}
+              resizeMode="cover"
+            />
+          </TouchableOpacity>
+        )}
+        keyExtractor={(item, index) => index.toString()}
+      />
+      
+      {/* Gradient Overlay */}
+      <View style={styles.gradientOverlay} />
+      
+      {/* Status Tags */}
+      {getGhostingTag()}
+      {getMatchCount()}
+      
+      {/* Age Badge */}
+      <View style={styles.ageBadge}>
+        <Text style={styles.ageText}>
+          {user.age} years
+        </Text>
+      </View>
+
+      {/* Photo Indicators */}
+      {user.photos.length > 1 && (
+        <View style={styles.photoIndicators}>
+          {user.photos.map((_, index) => (
+            <View
+              key={index}
+              style={[
+                styles.photoIndicator,
+                index === currentPhotoIndex && styles.photoIndicatorActive
+              ]}
+            />
+          ))}
+        </View>
+      )}
+
+
+    </View>
+  );
+
   return (
     <Animated.View
       style={[
@@ -80,27 +208,7 @@ const MatchCard: React.FC<MatchCardProps> = ({ user, onTip, onSwipe }) => {
       ]}
     >
       {/* Background Image with Gradient Overlay */}
-      <View style={styles.imageContainer}>
-        <Image
-          source={{ uri: user.photos[0] || 'https://via.placeholder.com/400x600' }}
-          style={styles.backgroundImage}
-          resizeMode="cover"
-        />
-        
-        {/* Gradient Overlay */}
-        <View style={styles.gradientOverlay} />
-        
-        {/* Status Tags */}
-        {getGhostingTag()}
-        {getMatchCount()}
-        
-        {/* Age Badge */}
-        <View style={styles.ageBadge}>
-          <Text style={styles.ageText}>
-            {user.age} years
-          </Text>
-        </View>
-      </View>
+      {renderPhotoCarousel()}
 
       {/* User Info */}
       <View style={styles.userInfo}>
@@ -153,6 +261,12 @@ const MatchCard: React.FC<MatchCardProps> = ({ user, onTip, onSwipe }) => {
           </TouchableOpacity>
         </View>
       </View>
+      <PhotoGalleryModal
+        visible={showGalleryModal}
+        photos={user.photos}
+        userName={user.name}
+        onClose={() => setShowGalleryModal(false)}
+      />
     </Animated.View>
   );
 };
@@ -178,8 +292,8 @@ const styles = StyleSheet.create({
     height: 384,
   },
   backgroundImage: {
-    width: '100%',
-    height: '100%',
+    width: width - 32,
+    height: 384,
   },
   gradientOverlay: {
     position: 'absolute',
@@ -236,6 +350,26 @@ const styles = StyleSheet.create({
     color: 'white',
     fontSize: 14,
     fontWeight: '600',
+  },
+  photoIndicators: {
+    position: 'absolute',
+    bottom: 16,
+    left: 16,
+    flexDirection: 'row',
+    gap: 8,
+  },
+  photoIndicator: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: 'rgba(255, 255, 255, 0.3)',
+  },
+  photoIndicatorActive: {
+    backgroundColor: '#00F90C',
+  },
+  photoItem: {
+    width: width - 32,
+    height: 384,
   },
   userInfo: {
     padding: 24,
